@@ -85,24 +85,6 @@ def load_datasets(dataset_paths):
             CONFIG.datasets.append(df)
 
 
-def print_datasets():
-    if CONFIG.datasets:
-        for df in CONFIG.datasets:
-            logger.info(f"\nDataset name: {df.schema.name}")
-    else:
-        logger.warning("No datasets loaded. Please upload datasets.")
-
-
-def print_history():
-    if CONFIG.history:
-        for msg in CONFIG.history:
-            logger.info(f"msg: {msg['role']}, {msg['content']}")
-        logger.info(f"message: {CONFIG.message}")
-        logger.info(f"response: {CONFIG.response}")
-    else:
-        logger.warning("No history. Please start a new conversation.")
-
-
 def get_full_message():
     full_message = ""
     if CONFIG.history is not None and isinstance(CONFIG.history, list) and len(CONFIG.history) > 0:
