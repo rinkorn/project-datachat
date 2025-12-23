@@ -129,7 +129,7 @@ with gr.Blocks(analytics_enabled=False, title="DataChat") as demo:
             setup_llm(CONFIG.llm_name)
         select_model_dropdown = gr.Dropdown(
             label="Select Model",
-            choices=["gpt-5-mini", "gpt-5.2", "qwen/qwen3-32b"],
+            choices=["gpt-5-mini", "gpt-5.2"],
             value=CONFIG.llm_name,
         )
         select_model_dropdown.change(
