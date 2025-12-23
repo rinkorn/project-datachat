@@ -1,16 +1,44 @@
 # %%
+import argparse
 import os
-from pathlib import Path
+import sys
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from typing import List
 
 import gradio as gr
-import pandas as pd
 import pandasai as pai
 from dotenv import load_dotenv
 from loguru import logger
 from pandasai_litellm.litellm import LiteLLM
 
 load_dotenv()
+
+
+def parse_args():
+    parser = ArgumentParser(description="DataChat", formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Server name")
+    parser.add_argument("--server-port", type=int, default=7860, help="Server port")
+    parser.add_argument("--share", action="store_true", default=False, help="Share the app")
+    parser.add_argument("--auth", action="store_true", default=True, help="Enable authentication")
+    parser.add_argument("--auth-message", type=str, default=None, help="Authentication message")
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default="openrouter",
+        help="LLM provider",
+        choices=["openrouter", "vsellm", "polzaai"],
+    )
+    parser.add_argument("--llm-name", type=str, default="gpt-5-mini", help="LLM name")
+    parser.add_argument("--llm-api-key", type=str, default=None, help="LLM API key")
+    parser.add_argument("--llm-base-url", type=str, default=None, help="LLM base URL")
+    parser.add_argument("--llm-enable-cache", action="store_true", default=False, help="Enable cache")
+    parser.add_argument("--llm-conversational", action="store_true", default=True, help="Enable conversational")
+    parser.add_argument("--llm-save-logs", action="store_true", default=True, help="Enable save logs")
+    parser.add_argument("--llm-verbose", action="store_true", default=False, help="Enable verbose")
+    parser.add_argument("--llm-max-retries", type=int, default=5, help="Max retries")
+
+    args = parser.parse_args()
+    return args
 
 
 def fn_authenticate(username, password):
@@ -23,15 +51,16 @@ def fn_authenticate(username, password):
 class CONFIG:
     gradio_username = os.getenv("GRADIO_USERNAME", "sber")
     gradio_password = os.getenv("GRADIO_PASSWORD", "sber123")
+    llm_provider = "openrouter"
     llm_name = "gpt-5-mini"
-    llm_api_key = os.getenv("POLZAAI_API_KEY")
-    llm_base_url = os.getenv("POLZAAI_BASE_URL")
+    llm_api_key = os.getenv(f"{llm_provider.upper()}_API_KEY")
+    llm_base_url = os.getenv(f"{llm_provider.upper()}_BASE_URL")
     llm: LiteLLM = None
     llm_enable_cache = False
     llm_conversational = True
     llm_save_logs = True
     llm_verbose = False
-    llm_max_retries = 3
+    llm_max_retries = 5
     datasets: List = None
     history = None
     message = None
@@ -43,7 +72,7 @@ class CONFIG:
     app_description = "DataChat is a chatbot that can help you with your data."
     app_share = False
     app_server_name = "0.0.0.0"
-    app_server_port = 8000
+    app_server_port = 7860
     app_fn_auth = fn_authenticate
     app_auth_message = None
     app_queue_enabled = True
@@ -59,22 +88,29 @@ class CONFIG:
 
 
 def setup_llm(model_choice):
-    CONFIG.llm_name = model_choice
-    CONFIG.llm = LiteLLM(
-        model=CONFIG.llm_name,
-        api_key=CONFIG.llm_api_key,
-        base_url=CONFIG.llm_base_url,
-    )
-    pai.config.set(
-        {
-            "llm": CONFIG.llm,
-            "enable_cache": CONFIG.llm_enable_cache,
-            "conversational": CONFIG.llm_conversational,
-            "save_logs": CONFIG.llm_save_logs,
-            "verbose": CONFIG.llm_verbose,
-            "max_retries": CONFIG.llm_max_retries,
-        }
-    )
+    previous_model_name = CONFIG.llm_name
+    logger.info(f"Setting up LLM: {model_choice}")
+    try:
+        CONFIG.llm_name = model_choice
+        CONFIG.llm = LiteLLM(
+            model=CONFIG.llm_name,
+            api_key=CONFIG.llm_api_key,
+            base_url=CONFIG.llm_base_url,
+        )
+        pai.config.set(
+            {
+                "llm": CONFIG.llm,
+                "enable_cache": CONFIG.llm_enable_cache,
+                "conversational": CONFIG.llm_conversational,
+                "save_logs": CONFIG.llm_save_logs,
+                "verbose": CONFIG.llm_verbose,
+                "max_retries": CONFIG.llm_max_retries,
+            }
+        )
+    except Exception as e:
+        CONFIG.llm_name = previous_model_name
+        logger.error(f"Error setting up LLM: {e}")
+    return CONFIG.llm_name
 
 
 def load_datasets(dataset_paths):
@@ -124,12 +160,11 @@ with gr.Blocks(analytics_enabled=False, title="DataChat") as demo:
     gr.Markdown(f"# {CONFIG.app_title}")
     gr.Markdown(f"## {CONFIG.app_description}")
     with gr.Row(scale=1):
-        # select model dropdown with dropdown list
         if CONFIG.llm is None:
             setup_llm(CONFIG.llm_name)
         select_model_dropdown = gr.Dropdown(
-            label="Select Model",
-            choices=["gpt-5-mini", "gpt-5.2", "qwen/qwen3-32b"],
+            label="Select Model Name",
+            choices=["gpt-5-mini", "gpt-5.2"],
             value=CONFIG.llm_name,
         )
         select_model_dropdown.change(
@@ -163,9 +198,22 @@ with gr.Blocks(analytics_enabled=False, title="DataChat") as demo:
             cache_examples=False,
         )
 
-if __name__ == "__main__":
-    if CONFIG.app_queue_enabled:
-        demo.queue(max_size=CONFIG.app_queue_max_size)
+
+def main(args):
+    CONFIG.app_server_name = args.server_name
+    CONFIG.app_server_port = args.server_port
+    CONFIG.app_share = args.share
+    CONFIG.app_fn_auth = fn_authenticate if args.auth else None
+    CONFIG.app_auth_message = args.auth_message
+    CONFIG.llm_provider = args.llm_provider
+    CONFIG.llm_name = args.llm_name
+    CONFIG.llm_api_key = args.llm_api_key
+    CONFIG.llm_base_url = args.llm_base_url
+    CONFIG.llm_enable_cache = args.llm_enable_cache
+    CONFIG.llm_conversational = args.llm_conversational
+    CONFIG.llm_save_logs = args.llm_save_logs
+    CONFIG.llm_verbose = args.llm_verbose
+    CONFIG.llm_max_retries = args.llm_max_retries
     demo.launch(
         server_name=CONFIG.app_server_name,
         server_port=CONFIG.app_server_port,
@@ -176,4 +224,30 @@ if __name__ == "__main__":
     )
 
 
-# %%
+def is_interactive():
+    """True if running in interactive mode (ipython, jupyter, etc.)"""
+    return hasattr(sys, "ps1")
+
+
+if __name__ == "__main__":
+    if not is_interactive():
+        args = parse_args()
+    else:
+        args = argparse.Namespace(
+            server_name="0.0.0.0",
+            server_port=7860,
+            share=False,
+            auth=True,
+            auth_message=None,
+            llm_provider="openrouter",
+            llm_name="gpt-5-mini",
+            llm_api_key=None,
+            llm_base_url=None,
+            llm_enable_cache=False,
+            llm_conversational=True,
+            llm_save_logs=True,
+            llm_verbose=False,
+            llm_max_retries=5,
+        )
+
+    main(args)
