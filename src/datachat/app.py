@@ -21,14 +21,7 @@ def parse_args():
     parser.add_argument("--share", action="store_true", default=False, help="Share the app")
     parser.add_argument("--auth", action="store_true", default=True, help="Enable authentication")
     parser.add_argument("--auth-message", type=str, default=None, help="Authentication message")
-    parser.add_argument(
-        "--llm-provider",
-        type=str,
-        default="openrouter",
-        help="LLM provider",
-        choices=["openrouter", "vsellm", "polzaai"],
-    )
-    parser.add_argument("--llm-name", type=str, default="gpt-5-mini", help="LLM name")
+    parser.add_argument("--llm-name", type=str, default="openrouter/openai/gpt-5-mini", help="LLM name")
     parser.add_argument("--llm-api-key", type=str, default=None, help="LLM API key")
     parser.add_argument("--llm-base-url", type=str, default=None, help="LLM base URL")
     parser.add_argument("--llm-enable-cache", action="store_true", default=False, help="Enable cache")
@@ -36,7 +29,6 @@ def parse_args():
     parser.add_argument("--llm-save-logs", action="store_true", default=True, help="Enable save logs")
     parser.add_argument("--llm-verbose", action="store_true", default=False, help="Enable verbose")
     parser.add_argument("--llm-max-retries", type=int, default=5, help="Max retries")
-
     args = parser.parse_args()
     return args
 
@@ -51,10 +43,14 @@ def fn_authenticate(username, password):
 class CONFIG:
     gradio_username = os.getenv("GRADIO_USERNAME", "sber")
     gradio_password = os.getenv("GRADIO_PASSWORD", "sber123")
-    llm_provider = "openrouter"
-    llm_name = "gpt-5-mini"
-    llm_api_key = os.getenv(f"{llm_provider.upper()}_API_KEY")
-    llm_base_url = os.getenv(f"{llm_provider.upper()}_BASE_URL")
+    llm_name = "openrouter/openai/gpt-5-mini"
+    llm_choices = [
+        "openrouter/openai/gpt-5-mini",
+        "openrouter/openai/gpt-5.2",
+        "openrouter/google/gemini-3-flash-preview",
+    ]
+    llm_api_key = os.getenv("OPENROUTER_API_KEY")
+    llm_base_url = os.getenv("OPENROUTER_BASE_URL")
     llm: LiteLLM = None
     llm_enable_cache = False
     llm_conversational = True
@@ -110,7 +106,6 @@ def setup_llm(model_choice):
     except Exception as e:
         CONFIG.llm_name = previous_model_name
         logger.error(f"Error setting up LLM: {e}")
-    return CONFIG.llm_name
 
 
 def load_datasets(dataset_paths):
@@ -164,7 +159,7 @@ with gr.Blocks(analytics_enabled=False, title="DataChat") as demo:
             setup_llm(CONFIG.llm_name)
         select_model_dropdown = gr.Dropdown(
             label="Select Model Name",
-            choices=["gpt-5-mini", "gpt-5.2"],
+            choices=CONFIG.llm_choices,
             value=CONFIG.llm_name,
         )
         select_model_dropdown.change(
@@ -199,21 +194,18 @@ with gr.Blocks(analytics_enabled=False, title="DataChat") as demo:
         )
 
 
+def is_interactive():
+    """True if running in interactive mode (ipython, jupyter, etc.)"""
+    return hasattr(sys, "ps1")
+
+
 def main(args):
-    CONFIG.app_server_name = args.server_name
-    CONFIG.app_server_port = args.server_port
-    CONFIG.app_share = args.share
-    CONFIG.app_fn_auth = fn_authenticate if args.auth else None
-    CONFIG.app_auth_message = args.auth_message
-    CONFIG.llm_provider = args.llm_provider
-    CONFIG.llm_name = args.llm_name
-    CONFIG.llm_api_key = args.llm_api_key
-    CONFIG.llm_base_url = args.llm_base_url
-    CONFIG.llm_enable_cache = args.llm_enable_cache
-    CONFIG.llm_conversational = args.llm_conversational
-    CONFIG.llm_save_logs = args.llm_save_logs
-    CONFIG.llm_verbose = args.llm_verbose
-    CONFIG.llm_max_retries = args.llm_max_retries
+    for key, value in args.__dict__.items():
+        if value is not None:
+            setattr(CONFIG, key, value)
+
+    print(f"CONFIG.llm_name: {CONFIG.llm_name}")
+    print(f"CONFIG.llm_base_url: {CONFIG.llm_base_url}")
     demo.launch(
         server_name=CONFIG.app_server_name,
         server_port=CONFIG.app_server_port,
@@ -224,30 +216,10 @@ def main(args):
     )
 
 
-def is_interactive():
-    """True if running in interactive mode (ipython, jupyter, etc.)"""
-    return hasattr(sys, "ps1")
-
-
 if __name__ == "__main__":
     if not is_interactive():
         args = parse_args()
     else:
-        args = argparse.Namespace(
-            server_name="0.0.0.0",
-            server_port=7860,
-            share=False,
-            auth=True,
-            auth_message=None,
-            llm_provider="openrouter",
-            llm_name="gpt-5-mini",
-            llm_api_key=None,
-            llm_base_url=None,
-            llm_enable_cache=False,
-            llm_conversational=True,
-            llm_save_logs=True,
-            llm_verbose=False,
-            llm_max_retries=5,
-        )
+        args = argparse.Namespace()
 
     main(args)
