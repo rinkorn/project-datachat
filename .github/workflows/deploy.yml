@@ -1,0 +1,28 @@
+name: Deploy DataChat
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-datachat
+
+jobs:
+  deploy:
+    runs-on: datachat
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rsync app to datachat host
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.venv' \
+            --exclude '.env' \
+            --exclude 'pandasai.log' \
+            ./ datachat:/opt/datachat/
+
+      - name: Install deps and restart service
+        run: |
+          ssh datachat 'cd /opt/datachat && /root/.local/bin/uv sync --frozen && systemctl restart datachat && sleep 3 && systemctl is-active datachat'
