@@ -21,6 +21,10 @@ jobs:
             --exclude '.venv' \
             --exclude '.env' \
             --exclude 'pandasai.log' \
+            --exclude 'data/' \
+            --exclude 'exports/' \
+            --exclude 'demogradio/' \
+            --exclude 'chart.png' \
             ./ datachat:/opt/datachat/
 
       - name: Install deps and restart service

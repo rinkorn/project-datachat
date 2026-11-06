@@ -46,6 +46,7 @@ class CONFIG:
     llm_name = "openrouter/z-ai/glm-5.3-flash@provider=streamlake&allow_fallbacks=false"
     llm_choices = [
         "openrouter/z-ai/glm-5.3-flash@provider=streamlake&allow_fallbacks=false",
+        "openrouter/openai/gpt-6-luna",
     ]
     llm_api_key = os.getenv("OPENROUTER_API_KEY")
     llm_base_url = os.getenv("OPENROUTER_BASE_URL")
