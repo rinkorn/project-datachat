@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument("--share", action="store_true", default=False, help="Share the app")
     parser.add_argument("--auth", action=argparse.BooleanOptionalAction, default=True, help="Enable authentication")
     parser.add_argument("--auth-message", type=str, default=None, help="Authentication message")
-    parser.add_argument("--llm-name", type=str, default="openrouter/openai/gpt-5-mini", help="LLM name")
+    parser.add_argument("--llm-name", type=str, default="openrouter/z-ai/glm-5.3-flash@provider=streamlake&allow_fallbacks=false", help="LLM name")
     parser.add_argument("--llm-api-key", type=str, default=None, help="LLM API key")
     parser.add_argument("--llm-base-url", type=str, default=None, help="LLM base URL")
     parser.add_argument("--llm-enable-cache", action="store_true", default=False, help="Enable cache")
@@ -43,11 +43,9 @@ def fn_authenticate(username, password):
 class CONFIG:
     gradio_username = os.getenv("GRADIO_USERNAME", "sber")
     gradio_password = os.getenv("GRADIO_PASSWORD", "sber123")
-    llm_name = "openrouter/openai/gpt-5-mini"
+    llm_name = "openrouter/z-ai/glm-5.3-flash@provider=streamlake&allow_fallbacks=false"
     llm_choices = [
-        "openrouter/openai/gpt-5-mini",
-        "openrouter/openai/gpt-5.2",
-        "openrouter/google/gemini-3-flash-preview",
+        "openrouter/z-ai/glm-5.3-flash@provider=streamlake&allow_fallbacks=false",
     ]
     llm_api_key = os.getenv("OPENROUTER_API_KEY")
     llm_base_url = os.getenv("OPENROUTER_BASE_URL")
