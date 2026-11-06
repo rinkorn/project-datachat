@@ -3,5 +3,5 @@
 ### How to run
 
 ```sh
-uv run python src/datachat/app.py
+uv run python src/datachat/app.py --auth
 ```

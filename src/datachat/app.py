@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Server name")
     parser.add_argument("--server-port", type=int, default=7860, help="Server port")
     parser.add_argument("--share", action="store_true", default=False, help="Share the app")
-    parser.add_argument("--auth", action="store_true", default=True, help="Enable authentication")
+    parser.add_argument("--auth", action=argparse.BooleanOptionalAction, default=True, help="Enable authentication")
     parser.add_argument("--auth-message", type=str, default=None, help="Authentication message")
     parser.add_argument("--llm-name", type=str, default="openrouter/openai/gpt-5-mini", help="LLM name")
     parser.add_argument("--llm-api-key", type=str, default=None, help="LLM API key")
@@ -209,7 +209,7 @@ def main(args):
     demo.launch(
         server_name=CONFIG.app_server_name,
         server_port=CONFIG.app_server_port,
-        auth=CONFIG.app_fn_auth,
+        auth=CONFIG.app_fn_auth if getattr(CONFIG, "auth", True) else None,
         auth_message=CONFIG.app_auth_message,
         css=CONFIG.app_css,
         share=CONFIG.app_share,
